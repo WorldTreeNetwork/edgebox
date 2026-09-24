@@ -1,5 +1,14 @@
 # Edgebox development instructions
 
+## Start here
+
+- Read `ARCHITECTURE.md`, `docs/ROADMAP.md`, and the relevant file under
+  `docs/plans/` before planning or implementing a remaining capability.
+- Treat `openspec/specs/` as delivered truth. Plans and active changes describe
+  intent, not shipped behavior.
+- Revalidate external protocols and live Pi assumptions at the execution frontier;
+  do not turn a dated observation into a permanent fact.
+
 ## Components
 
 - Use Storybook as the primary environment for developing reusable UI. Add or

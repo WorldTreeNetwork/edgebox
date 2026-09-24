@@ -3,6 +3,10 @@
 SvelteKit 3 application with Svelte 5, Tailwind CSS 4, Storybook, Drizzle ORM,
 SQLite, Better Auth, Vitest, Playwright, and mdsvex.
 
+Project direction and agent handoffs are documented in
+[`ARCHITECTURE.md`](ARCHITECTURE.md), [`docs/ROADMAP.md`](docs/ROADMAP.md), and
+[`docs/plans/`](docs/plans/). Delivered behavior lives in `openspec/specs/`.
+
 ## Get started
 
 ```sh
