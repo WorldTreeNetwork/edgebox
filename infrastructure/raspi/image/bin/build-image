@@ -16,7 +16,13 @@ source "$IMAGE_DIR/lib/manifest.sh"
 
 CONFIG_FILE=
 OUTPUT_DIR=$PROJECT_ROOT/dist/raspi
-CACHE_DIR=${XDG_CACHE_HOME:-$HOME/.cache}/edgebox/raspi
+if [[ -n "${XDG_CACHE_HOME:-}" ]]; then
+  CACHE_DIR=$XDG_CACHE_HOME/edgebox/raspi
+elif [[ -n "${HOME:-}" ]]; then
+  CACHE_DIR=$HOME/.cache/edgebox/raspi
+else
+  CACHE_DIR=/var/cache/edgebox/raspi
+fi
 WORK_DIR=
 DRY_RUN=false
 KEEP_WORK=false
@@ -82,9 +88,7 @@ export WORK_DIR
 
 cleanup() {
   local status=$?
-  if [[ -f "$WORK_DIR/loop.path" ]]; then IMAGE_LOOP=$(<"$WORK_DIR/loop.path"); fi
-  if [[ -f "$WORK_DIR/root-mount.path" ]]; then IMAGE_ROOT_MOUNT=$(<"$WORK_DIR/root-mount.path"); fi
-  if [[ -f "$WORK_DIR/boot-mount.path" ]]; then IMAGE_BOOT_MOUNT=$(<"$WORK_DIR/boot-mount.path"); fi
+  load_attach
   detach_image
   if ! is_true "$KEEP_WORK"; then safe_remove_dir "$WORK_DIR"; else warn "preserving work directory: $WORK_DIR"; fi
   exit "$status"

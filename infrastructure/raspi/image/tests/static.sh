@@ -26,10 +26,18 @@ grep -Eq '^BASE_IMAGE_SHA256=[0-9a-f]{64}$' "$IMAGE_DIR/config/base-image.lock"
 grep -q 'ConditionPathExists=!/var/lib/edgebox/first-boot.complete' \
   "$IMAGE_DIR/rootfs/common/etc/systemd/system/edgebox-first-boot.service"
 
-docker compose \
-  --env-file "$IMAGE_DIR/tests/fixtures/compose.env" \
-  -f "$IMAGE_DIR/rootfs/apps/usr/local/share/edgebox/compose.yaml" \
-  config --quiet
+if docker info >/dev/null 2>&1; then
+  docker compose \
+    --env-file "$IMAGE_DIR/tests/fixtures/compose.env" \
+    -f "$IMAGE_DIR/rootfs/apps/usr/local/share/edgebox/compose.yaml" \
+    config --quiet
+else
+  printf 'skipping compose config (docker daemon unavailable)\n'
+fi
+
+if [[ $(uname -s) == Linux && $(id -u) -eq 0 ]]; then
+  "$IMAGE_DIR/tests/offset.sh"
+fi
 
 output=$(
   "$IMAGE_DIR/bin/build-image" \

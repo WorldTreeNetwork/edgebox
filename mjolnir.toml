@@ -1,0 +1,33 @@
+# Prod plan matches Deploy.Detector for this bun SvelteKit app. A manifest
+# replaces detection, so these keys stay even though the image target below
+# is the reason this file exists.
+runtime = "node@20"
+steps = ["mise install", "bun install", "bun run build"]
+start_command = "node build/index.js"
+port = 3000
+
+# Raspberry Pi image. `mj spawn --target raspi-image` with the checkout at
+# workdir. The guest kernel has no MBR parser; the builder mounts partitions
+# by offset. 4096 MiB covers xz and the page cache. The command stays up
+# after success so the target unit's Restart=always does not rebuild.
+# config/site.env, when present, replaces the env table. The SSH key below
+# is the committed test key, not a login key.
+[targets.raspi-image]
+base = "ubuntu-24.04"
+memory_mb = 4096
+workdir = "/root/edgebox"
+command = "infrastructure/raspi/image/bin/mjolnir-build && sleep infinity"
+
+[targets.raspi-image.env]
+EDGEBOX_HOSTNAME = "edgebox"
+EDGEBOX_USER = "edgebox"
+EDGEBOX_TIMEZONE = "Etc/UTC"
+EDGEBOX_LOCALE = "en_US.UTF-8"
+EDGEBOX_KEYMAP = "us"
+EDGEBOX_LAN_INTERFACE = "eth0"
+EDGEBOX_NETWORK_MODE = "dhcp"
+EDGEBOX_LOCAL_DOMAIN = "local"
+EDGEBOX_PROFILES = "core,apps"
+EDGEBOX_DATA_MOUNT = "/Media"
+EDGEBOX_PXE_MODE = "disabled"
+EDGEBOX_SSH_PUBLIC_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEdgeboxTestOnlyNotARealLoginKey edgebox-test"

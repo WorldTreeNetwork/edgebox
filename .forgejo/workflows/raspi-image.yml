@@ -1,0 +1,44 @@
+name: Raspberry Pi image
+
+# Builds the flashable Edgebox image inside a Mjolnir CI VM. The runner
+# label ubuntu-24.04 is the ci-ubuntu-24.04 guest, whose kernel cannot
+# parse MBR. The builder mounts partitions by offset.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/raspi/**'
+      - '.forgejo/workflows/raspi-image.yml'
+      - 'mjolnir.toml'
+  workflow_dispatch:
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install image tools
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y -qq ca-certificates curl dosfstools e2fsprogs fdisk rsync xz-utils
+
+      - name: Static checks and partition mount
+        run: infrastructure/raspi/image/tests/static.sh
+
+      - name: Build image
+        run: infrastructure/raspi/image/bin/mjolnir-build
+
+      - name: Publish image
+        uses: forgejo/upload-artifact@v4
+        with:
+          name: edgebox-raspi-image
+          path: |
+            dist/raspi/*.img.xz
+            dist/raspi/*.img.xz.sha256
+            dist/raspi/*.img.xz.manifest
+          if-no-files-found: error
+          include-hidden-files: 'false'
+          overwrite: 'true'

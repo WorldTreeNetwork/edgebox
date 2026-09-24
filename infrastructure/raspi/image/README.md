@@ -7,10 +7,18 @@ emits a compressed image with checksum and provenance manifest.
 
 ## Build host
 
-A real build requires Linux and root privileges for loop devices and mounts.
-Install `curl`, `xz-utils`, `coreutils`, `util-linux`, `cloud-guest-utils`,
-`parted`, `e2fsprogs`, and `rsync`. macOS can run static tests and `--dry-run`
-but cannot perform the image lifecycle directly.
+A real build requires Linux and root, for loop devices and mounts. Install
+`curl`, `ca-certificates`, `xz-utils`, `coreutils`, `fdisk` (for `sfdisk`),
+`e2fsprogs`, and `rsync`. Partition tables are edited with `sfdisk` and mounted by byte
+offset, so the host kernel does not need an MBR parser. That is what makes
+the build run in a Mjolnir guest. macOS can run the static checks and
+`--dry-run`, not the image lifecycle.
+
+`mj spawn --target raspi-image` uses the defaults in the repo `mjolnir.toml`
+(Ubuntu 24.04, 4096 MiB, DHCP, `core,apps`). Forgejo runs
+`.forgejo/workflows/raspi-image.yml` on the same kind of guest. A committed
+`config/site.env` is never required: without one, the build uses those
+defaults and a test-only SSH key.
 
 ## Configure
 

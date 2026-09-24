@@ -18,6 +18,6 @@ is_true() {
 
 safe_remove_dir() {
   local target=${1:?target required}
-  [[ -n "$target" && "$target" != / && "$target" != "$HOME" ]] || die "refusing unsafe directory removal: $target"
+  [[ -n "$target" && "$target" != / && "$target" != "${HOME:-}" ]] || die "refusing unsafe directory removal: $target"
   rm -rf -- "$target"
 }

@@ -9,6 +9,6 @@ fi
 for command in curl xz sha256sum awk sed find; do require_command "$command"; done
 if ! is_true "${DRY_RUN:-false}"; then
   require_root
-  for command in losetup mount umount mountpoint growpart partprobe e2fsck resize2fs rsync; do require_command "$command"; done
+  for command in losetup mount umount mountpoint sfdisk e2fsck resize2fs rsync; do require_command "$command"; done
 fi
 log "configuration and host prerequisites passed"

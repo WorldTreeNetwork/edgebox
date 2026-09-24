@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Install build tools and run the image build. Uses config/site.env when it
+# exists. Otherwise writes a site file from the environment (see
+# mjolnir.toml [targets.raspi-image.env]) and a test-only SSH key.
+set -Eeuo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+IMAGE_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
+
+if [[ $(id -u) -ne 0 ]]; then
+  exec sudo -E "$0" "$@"
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq ca-certificates curl e2fsprogs fdisk rsync xz-utils
+
+config=$IMAGE_DIR/config/site.env
+if [[ ! -f "$config" ]]; then
+  config=${TMPDIR:-/tmp}/edgebox-site.env
+  umask 077
+  : > "$config"
+  keys=(
+    EDGEBOX_HOSTNAME EDGEBOX_USER EDGEBOX_TIMEZONE EDGEBOX_LOCALE EDGEBOX_KEYMAP
+    EDGEBOX_LAN_INTERFACE EDGEBOX_NETWORK_MODE EDGEBOX_LAN_ADDRESS EDGEBOX_LAN_GATEWAY
+    EDGEBOX_LAN_DNS EDGEBOX_LOCAL_DOMAIN EDGEBOX_PROFILES EDGEBOX_DATA_MOUNT
+    EDGEBOX_DATA_UUID EDGEBOX_PXE_MODE EDGEBOX_PXE_DHCP_START EDGEBOX_PXE_DHCP_END
+    EDGEBOX_PXE_NETMASK EDGEBOX_PXE_GATEWAY EDGEBOX_PXE_DNS
+    EDGEBOX_ACKNOWLEDGE_DHCP_SERVER EDGEBOX_SSH_PUBLIC_KEY
+  )
+  for key in "${keys[@]}"; do
+    value=${!key-}
+    if [[ "$key" == EDGEBOX_SSH_PUBLIC_KEY && -z "$value" ]]; then
+      value="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEdgeboxTestOnlyNotARealLoginKey edgebox-test"
+    fi
+    [[ -n "$value" ]] || continue
+    printf '%s=%s\n' "$key" "$value" >> "$config"
+  done
+  printf '[edgebox] no site.env; built from environment with the test-only SSH key\n' >&2
+fi
+
+exec "$IMAGE_DIR/bin/build-image" --config "$config" "$@"
