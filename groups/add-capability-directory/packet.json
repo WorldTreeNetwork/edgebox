@@ -1,0 +1,48 @@
+{
+	"id": "add-capability-directory",
+	"change_id": "add-capability-directory",
+	"capability": "capability-directory",
+	"goal": "Compose the delivered catalog and interface kit into functional capability-first application routes with session-owned preferences and minimal integration proof.",
+	"permission": "write",
+	"surface": "skill-host",
+	"authority": "User explicitly invoked $run add-capability-directory; proposal preparation confirms the activated scope.",
+	"inputs": [
+		"openspec/changes/add-capability-directory/**",
+		"openspec/changes/add-edgebox-home-base/{design,information-architecture,journeys}.md",
+		"openspec/specs/service-catalog/spec.md",
+		"openspec/specs/edgebox-interface/spec.md",
+		"src/lib/catalog/**",
+		"src/lib/server/catalog/**",
+		"src/lib/components/**",
+		"src/lib/server/auth.ts"
+	],
+	"constraints": {
+		"paths": [
+			"src/routes/**",
+			"src/lib/server/directory/**",
+			"e2e/**",
+			"playwright.config.ts",
+			"package.json",
+			"bun.lock",
+			"openspec/changes/add-capability-directory/**",
+			"groups/add-capability-directory/results/**"
+		],
+		"do_not": [
+			"Edit catalog DTO/repository/schema/migrations or reusable component implementation",
+			"Edit auth internals, add passkeys, or remove demo auth flows",
+			"Implement health probing, operator System behavior, storage, SSO, or Pi infrastructure",
+			"Use unvalidated query input as an external URL",
+			"Fold, push, or create a worktree"
+		]
+	},
+	"acceptance": {
+		"command": "bunx vitest run --project server src/lib/server/directory && bunx playwright test e2e/capability-directory.spec.ts",
+		"criteria": [
+			"Home, capability/application indexes, and detail routes use the delivered shared components",
+			"GET query state is bounded, shareable, and visibility-safe",
+			"Preference writes derive owner from App.Locals and repository eligibility checks",
+			"External launches come only from catalog DTO approved URLs",
+			"Focused server tests and one minimal deterministic discovery E2E pass"
+		]
+	}
+}

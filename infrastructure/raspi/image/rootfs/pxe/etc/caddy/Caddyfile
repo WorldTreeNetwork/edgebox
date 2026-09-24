@@ -1,0 +1,14 @@
+http://:80 {
+	handle_path /tftp/* {
+		root * /srv/tftp
+		file_server
+	}
+	handle_path /archiso/* {
+		root * /srv/http/archiso
+		file_server browse
+	}
+	handle_path /repo/* {
+		root * /srv/http/repo
+		file_server browse
+	}
+}

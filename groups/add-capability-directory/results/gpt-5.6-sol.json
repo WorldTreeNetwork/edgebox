@@ -1,0 +1,46 @@
+{
+	"node": "add-capability-directory",
+	"success": true,
+	"disposition": "accepted-after-repair",
+	"acceptance": {
+		"command": "bunx vitest run --project server src/lib/server/directory && bunx playwright test e2e/capability-directory.spec.ts",
+		"initialResult": "task-red: the 3 deterministic server adapter tests passed, but the discovery browser test timed out because the delivered CapabilityCard stretched link was positioned against an ancestor and intercepted the Home search submit control.",
+		"repair": "Wrapped CapabilityCard route compositions in owned positioned containers without changing the reusable component.",
+		"rerunResult": "passed: 1 server test file with 3 tests and 1 Playwright discovery test."
+	},
+	"artifacts": [
+		"src/lib/server/directory/adapter.ts",
+		"src/lib/server/directory/adapter.spec.ts",
+		"src/lib/server/directory/query.ts",
+		"src/lib/server/directory/index.ts",
+		"src/routes/directory-url.ts",
+		"src/routes/+page.server.ts",
+		"src/routes/+page.svelte",
+		"src/routes/capabilities/+page.server.ts",
+		"src/routes/capabilities/+page.svelte",
+		"src/routes/capabilities/[capability]/+page.server.ts",
+		"src/routes/capabilities/[capability]/+page.svelte",
+		"src/routes/applications/+page.server.ts",
+		"src/routes/applications/+page.svelte",
+		"src/routes/applications/[application]/+page.server.ts",
+		"src/routes/applications/[application]/+page.svelte",
+		"src/routes/login/+page.server.ts",
+		"src/routes/login/+page.svelte",
+		"e2e/capability-directory.spec.ts",
+		"e2e/global-teardown.ts",
+		"playwright.config.ts",
+		"package.json",
+		"bun.lock",
+		"openspec/changes/add-capability-directory/tasks.md"
+	],
+	"notes": [
+		"Routes compose the delivered AppShell, HomeSearch, DirectoryFilters, CapabilityCard, ApplicationCard, ApplicationDetail, ProviderChooser, and EmptyState components; reusable component implementation was not copied or edited.",
+		"Query input is trimmed and bounded to 120 Unicode code points, unknown facets normalize away, and catalog visibility is applied before DTOs reach routes.",
+		"Preference actions derive the user and viewer from App.Locals and rely on repository association and approved-endpoint eligibility checks; posted user IDs and external URLs are never accepted.",
+		"The current demo auth was left intact. Guests receive a clear local /login return flow that describes the demo boundary rather than implying Identikey/passkeys are complete.",
+		"Playwright creates and migrates a fresh temporary SQLite database, passes its path only to the isolated dev server, asserts approved link destinations without contacting live applications, and removes the database afterward.",
+		"bun run check, path-scoped Prettier and ESLint, bun run build, and bun run build-storybook passed. Storybook reported only its existing large-chunk warning.",
+		"The passing browser run logged Svelte non-reactive-binding warnings from the delivered DirectoryFilters component; that implementation is outside this node's owned paths and the tested filtering flow passed.",
+		"No commit was possible because the shared checkout has no initial HEAD, and the repository does not contain the intention conductor scripts. No fold, push, worktree, auth-internal, catalog, component, schema, or migration edits were made."
+	]
+}

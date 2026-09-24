@@ -1,0 +1,29 @@
+{
+	"node_id": "add-service-catalog",
+	"agent": "gpt-5.6-terra",
+	"disposition": "success",
+	"acceptance": {
+		"command": "bunx vitest run --project server src/lib/server/catalog",
+		"result": "repair passed: 1 test file, 5 tests"
+	},
+	"artifacts": [
+		"src/lib/catalog/types.ts",
+		"src/lib/catalog/index.ts",
+		"src/lib/server/catalog/repository.ts",
+		"src/lib/server/catalog/repository.spec.ts",
+		"src/lib/server/db/schema.ts",
+		"drizzle/0002_foamy_triton.sql",
+		"drizzle/meta/0002_snapshot.json",
+		"drizzle/meta/_journal.json",
+		"openspec/changes/add-service-catalog/"
+	],
+	"notes": [
+		"Generated migration creates and idempotently seeds the curated catalog while preserving auth and task tables.",
+		"Initial focused acceptance passed with 4 tests; the repair focused acceptance was run exactly once and passed with 5 tests.",
+		"Repair: savePreference now accepts only server-derived owner/viewer input and rejects associations without a visible enabled application and matching enabled approved HTTP(S) launch endpoint.",
+		"Focused tests retain invalid-association rejection and add disabled/unlaunchable-provider rejection with no persisted preference.",
+		"bun run check and bun run build passed; catalog-only Prettier and ESLint passed. Root bun run lint remains red only because pre-existing sibling/unowned files are not formatted.",
+		"No commit, fold, push, or sibling-path edits were made."
+	],
+	"signature": "gpt-5.6-terra:add-service-catalog:success"
+}

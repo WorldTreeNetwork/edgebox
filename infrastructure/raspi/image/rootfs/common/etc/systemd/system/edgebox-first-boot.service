@@ -1,0 +1,15 @@
+[Unit]
+Description=Edgebox first-boot provisioning
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=!/var/lib/edgebox/first-boot.complete
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/edgebox-first-boot
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

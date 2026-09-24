@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+IMAGE_DIR=$(cd -- "$SCRIPT_DIR/.." && pwd)
+PROJECT_ROOT=$(cd -- "$IMAGE_DIR/../../.." && pwd)
+
+# shellcheck source=../lib/common.sh
+source "$IMAGE_DIR/lib/common.sh"
+# shellcheck source=../lib/config.sh
+source "$IMAGE_DIR/lib/config.sh"
+# shellcheck source=../lib/image.sh
+source "$IMAGE_DIR/lib/image.sh"
+# shellcheck source=../lib/manifest.sh
+source "$IMAGE_DIR/lib/manifest.sh"
+
+CONFIG_FILE=
+OUTPUT_DIR=$PROJECT_ROOT/dist/raspi
+CACHE_DIR=${XDG_CACHE_HOME:-$HOME/.cache}/edgebox/raspi
+WORK_DIR=
+DRY_RUN=false
+KEEP_WORK=false
+EXTRA_ROOT_MIB=2048
+CLI_PROFILES=
+
+usage() {
+  cat <<'EOF'
+Usage: build-image --config FILE [options]
+
+Options:
+  --profile NAME       Enable an additional profile (repeatable)
+  --output-dir DIR     Output directory (default: dist/raspi)
+  --cache-dir DIR      Base-image cache directory
+  --work-dir DIR       Use a specific empty work directory
+  --extra-root-mib N   Space added to the root partition (default: 2048)
+  --dry-run            Validate and print phases without privileged changes
+  --keep-work          Preserve the work directory after success or failure
+  --help               Show this help
+EOF
+}
+
+while (($#)); do
+  case "$1" in
+    --config) CONFIG_FILE=${2:?missing value}; shift 2 ;;
+    --profile) CLI_PROFILES=${CLI_PROFILES:+$CLI_PROFILES,}${2:?missing value}; shift 2 ;;
+    --output-dir) OUTPUT_DIR=${2:?missing value}; shift 2 ;;
+    --cache-dir) CACHE_DIR=${2:?missing value}; shift 2 ;;
+    --work-dir) WORK_DIR=${2:?missing value}; shift 2 ;;
+    --extra-root-mib) EXTRA_ROOT_MIB=${2:?missing value}; shift 2 ;;
+    --dry-run) DRY_RUN=true; shift ;;
+    --keep-work) KEEP_WORK=true; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+[[ -n "$CONFIG_FILE" ]] || die "--config is required"
+[[ "$EXTRA_ROOT_MIB" =~ ^[0-9]+$ ]] || die "--extra-root-mib must be numeric"
+
+load_env_file "$IMAGE_DIR/config/base-image.lock"
+load_env_file "$IMAGE_DIR/config/defaults.env"
+validate_site_file "$CONFIG_FILE"
+load_env_file "$CONFIG_FILE"
+if [[ -n "$CLI_PROFILES" ]]; then
+  IFS=',' read -ra extra_profiles <<< "$CLI_PROFILES"
+  for profile in "${extra_profiles[@]}"; do
+    [[ "$profile" =~ ^[a-z0-9-]+$ ]] || die "invalid profile: $profile"
+    EDGEBOX_PROFILES=${EDGEBOX_PROFILES:+$EDGEBOX_PROFILES,}$profile
+  done
+fi
+export IMAGE_DIR PROJECT_ROOT CONFIG_FILE OUTPUT_DIR CACHE_DIR EXTRA_ROOT_MIB DRY_RUN
+export EDGEBOX_PROFILES
+validate_config
+
+if [[ -z "$WORK_DIR" ]]; then
+  WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/edgebox-image.XXXXXX")
+else
+  mkdir -p "$WORK_DIR"
+  [[ -z "$(find "$WORK_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]] || die "work directory must be empty: $WORK_DIR"
+fi
+export WORK_DIR
+
+cleanup() {
+  local status=$?
+  if [[ -f "$WORK_DIR/loop.path" ]]; then IMAGE_LOOP=$(<"$WORK_DIR/loop.path"); fi
+  if [[ -f "$WORK_DIR/root-mount.path" ]]; then IMAGE_ROOT_MOUNT=$(<"$WORK_DIR/root-mount.path"); fi
+  if [[ -f "$WORK_DIR/boot-mount.path" ]]; then IMAGE_BOOT_MOUNT=$(<"$WORK_DIR/boot-mount.path"); fi
+  detach_image
+  if ! is_true "$KEEP_WORK"; then safe_remove_dir "$WORK_DIR"; else warn "preserving work directory: $WORK_DIR"; fi
+  exit "$status"
+}
+trap cleanup EXIT INT TERM
+
+PHASES=(
+  10-check-host
+  20-fetch-base
+  30-prepare-image
+  40-customize-rootfs
+  50-seal-image
+  60-package-image
+  70-validate-image
+)
+
+for phase in "${PHASES[@]}"; do
+  log "phase $phase"
+  if is_true "$DRY_RUN"; then
+    "$IMAGE_DIR/phases/$phase.sh" --dry-run
+  else
+    "$IMAGE_DIR/phases/$phase.sh"
+  fi
+done
+
+log "build complete: $OUTPUT_DIR"

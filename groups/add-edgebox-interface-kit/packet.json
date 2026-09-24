@@ -1,0 +1,41 @@
+{
+	"id": "add-edgebox-interface-kit",
+	"capability": "edgebox-interface",
+	"goal": "Build the reusable Storybook-first Edgebox shell and catalog interaction components with focused browser tests.",
+	"permission": "write",
+	"surface": "skill-host",
+	"already_taken": true,
+	"authority": "User invoked run-wave for the two ready descendants of accepted add-edgebox-home-base architecture.",
+	"inputs": [
+		"openspec/changes/add-edgebox-home-base/design.md",
+		"openspec/changes/add-edgebox-home-base/information-architecture.md",
+		"openspec/changes/add-edgebox-home-base/journeys.md",
+		"openspec/changes/add-edgebox-home-base/specs/edgebox-home-base/spec.md",
+		"src/lib/catalog/** (read-only contract owned by sibling)"
+	],
+	"constraints": {
+		"paths": [
+			"src/lib/components/**",
+			"src/lib/styles/**",
+			"package.json",
+			"bun.lock",
+			"openspec/changes/add-edgebox-interface-kit/**",
+			"groups/add-edgebox-interface-kit/results/**"
+		],
+		"do_not": [
+			"Edit src/lib/catalog, server/database files, application routes, root layout.css, or Pi infrastructure",
+			"Implement route data loading, authentication, preferences, or health checks",
+			"Create a parallel DTO model that conflicts with src/lib/catalog",
+			"Push or fold the change"
+		]
+	},
+	"acceptance": {
+		"command": "bunx vitest run --project client src/lib/components",
+		"criteria": [
+			"Components start from the closest shadcn-svelte or headless accessible primitive",
+			"Stories cover meaningful success, empty, pending, failed, guest, member, operator, unavailable, and responsive states from the accepted journey inventory",
+			"Components remain server-agnostic and are suitable for direct route reuse",
+			"Focused browser tests cover keyboard/focus behavior and state-changing interactions without duplicating every story"
+		]
+	}
+}

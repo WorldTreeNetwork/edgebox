@@ -1,0 +1,40 @@
+{
+	"id": "add-service-catalog",
+	"capability": "service-catalog",
+	"goal": "Persist the curated Edgebox inventory and capability/provider relationships in SQLite with typed read/query behavior.",
+	"permission": "write",
+	"surface": "skill-host",
+	"already_taken": true,
+	"authority": "User invoked run-wave for the two ready descendants of accepted add-edgebox-home-base architecture.",
+	"inputs": [
+		"openspec/changes/add-edgebox-home-base/design.md",
+		"openspec/changes/add-edgebox-home-base/information-architecture.md",
+		"openspec/changes/add-edgebox-home-base/journeys.md",
+		"openspec/changes/add-edgebox-home-base/specs/edgebox-home-base/spec.md"
+	],
+	"constraints": {
+		"paths": [
+			"src/lib/catalog/**",
+			"src/lib/server/catalog/**",
+			"src/lib/server/db/schema.ts",
+			"drizzle/**",
+			"openspec/changes/add-service-catalog/**",
+			"groups/add-service-catalog/results/**"
+		],
+		"do_not": [
+			"Edit package.json, bun.lock, application routes, UI components, or Pi infrastructure",
+			"Drop the existing task or auth tables",
+			"Implement health probing, Docker discovery, or operator administration",
+			"Push or fold the change"
+		]
+	},
+	"acceptance": {
+		"command": "bunx vitest run --project server src/lib/server/catalog",
+		"criteria": [
+			"Drizzle migrations create and seed the curated inventory idempotently",
+			"Shared serializable catalog DTOs live under src/lib/catalog and match the accepted architecture",
+			"Repository/query tests cover visibility, filters, provider resolution, preference ownership, and invalid associations",
+			"All schema changes use generated committed migrations"
+		]
+	}
+}

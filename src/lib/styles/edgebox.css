@@ -1,0 +1,92 @@
+:where(.edgebox-kit) {
+	--edge-paper: #fbfaf6;
+	--edge-paper-deep: #f3f0e8;
+	--edge-ink: #24302b;
+	--edge-muted: #65716a;
+	--edge-line: #d9d8cf;
+	--edge-moss: #2f6a50;
+	--edge-moss-wash: #e4eee8;
+	--edge-clay: #a84a2d;
+	--edge-clay-wash: #f9e8e2;
+	--edge-slate: #40535d;
+	font-family: Georgia, 'Times New Roman', serif;
+	color: var(--edge-ink);
+	font-synthesis: none;
+}
+
+/* These semantic utility aliases keep component stories independent of the
+   route stylesheet while preserving the same token vocabulary. */
+:where(.bg-edge-paper) {
+	background-color: var(--edge-paper);
+}
+:where(.bg-edge-paper-deep) {
+	background-color: var(--edge-paper-deep);
+}
+:where(.bg-edge-ink) {
+	background-color: var(--edge-ink);
+}
+:where(.bg-edge-moss\/5, .bg-edge-moss\/10) {
+	background-color: var(--edge-moss-wash);
+}
+:where(.bg-edge-clay\/10) {
+	background-color: var(--edge-clay-wash);
+}
+:where(.text-edge-ink) {
+	color: var(--edge-ink);
+}
+:where(.text-edge-muted) {
+	color: var(--edge-muted);
+}
+:where(.text-edge-moss) {
+	color: var(--edge-moss);
+}
+:where(.text-edge-clay) {
+	color: var(--edge-clay);
+}
+:where(.text-edge-slate) {
+	color: var(--edge-slate);
+}
+:where(.border-edge-line) {
+	border-color: var(--edge-line);
+}
+:where(.border-edge-moss, .border-edge-moss\/25, .border-edge-moss\/40) {
+	border-color: var(--edge-moss);
+}
+:where(.border-edge-clay\/25, .border-edge-clay\/30) {
+	border-color: var(--edge-clay);
+}
+:where(.hover\:bg-edge-moss:hover) {
+	background-color: var(--edge-moss);
+}
+:where(.hover\:bg-edge-paper-deep:hover) {
+	background-color: var(--edge-paper-deep);
+}
+:where(.backdrop\:bg-edge-ink\/30)::backdrop {
+	background-color: color-mix(in srgb, var(--edge-ink) 30%, transparent);
+}
+
+:where(.edgebox-kit button, .edgebox-kit a, .edgebox-kit input, .edgebox-kit select) {
+	outline-offset: 3px;
+}
+
+:where(
+	.edgebox-kit button:focus-visible,
+	.edgebox-kit a:focus-visible,
+	.edgebox-kit input:focus-visible,
+	.edgebox-kit select:focus-visible
+) {
+	outline: 3px solid #b98935;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	:where(.edgebox-kit button, .edgebox-kit a) {
+		transition:
+			color 150ms ease-out,
+			background-color 150ms ease-out,
+			border-color 150ms ease-out,
+			transform 120ms ease-out;
+	}
+	:where(.edgebox-kit button:active) {
+		transform: scale(0.97);
+	}
+}

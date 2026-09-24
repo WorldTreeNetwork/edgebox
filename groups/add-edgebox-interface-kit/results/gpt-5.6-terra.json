@@ -1,0 +1,39 @@
+{
+	"node": "add-edgebox-interface-kit",
+	"success": true,
+	"disposition": "accepted-after-repair",
+	"acceptance": {
+		"command": "bunx vitest run --project client src/lib/components",
+		"initialFailure": "The first run failed before test execution because the starter browser transform rejected legacy $lib CSS imports. The kit was changed to the configured #lib alias.",
+		"repairFailure": "The first authorized repair verification ran five tests and found two test assertion defects: an unscoped duplicate Sign in locator and a dialog locator recreated after Escape removed the dialog. Both assertions were repaired in owned browser specs.",
+		"completenessRepairFailure": "Post-join inspection identified missing reusable application, account, login, passkey, and preferred-app surfaces. The first completeness run then found a test-only passkey label locator that was not scoped to its native dialog; it was repaired in the owned browser spec.",
+		"lintRepair": "Path-scoped ESLint identified 14 owned errors: missing keys in each blocks, an unused passkey index, and Svelte 5 $state plus $effect copy patterns. The kit now uses keyed lists and writable $derived values; bunx eslint src/lib/components passes.",
+		"finalResult": "passed after the lint repair: bun run check, bunx eslint src/lib/components, and the focused suite (4 test files, 7 browser tests) all pass."
+	},
+	"artifacts": [
+		"openspec/changes/add-edgebox-interface-kit/proposal.md",
+		"openspec/changes/add-edgebox-interface-kit/design.md",
+		"openspec/changes/add-edgebox-interface-kit/specs/edgebox-interface/spec.md",
+		"src/lib/styles/edgebox.css",
+		"src/lib/components/AppShell.svelte",
+		"src/lib/components/HomeSearch.svelte",
+		"src/lib/components/DirectoryFilters.svelte",
+		"src/lib/components/ProviderChooser.svelte",
+		"src/lib/components/ApplicationDetail.svelte",
+		"src/lib/components/ApplicationCard.svelte",
+		"src/lib/components/AccountMenu.svelte",
+		"src/lib/components/LoginPanel.svelte",
+		"src/lib/components/PasskeyRow.svelte",
+		"src/lib/components/PasskeySettings.svelte",
+		"src/lib/components/PreferredApps.svelte",
+		"src/lib/components/SystemOverview.svelte",
+		"src/lib/components/Edgebox.stories.svelte",
+		"src/lib/components/*.svelte.spec.ts"
+	],
+	"notes": [
+		"The kit imports catalog-owned HealthState, Viewer, CapabilitySummary, and ApplicationSummary contracts after they became available, without editing catalog files.",
+		"bun run check passed after the final repair.",
+		"bun run build-storybook passed after the completeness repair.",
+		"The earlier claim that lint was blocked only outside this node was incorrect: this node had 14 ESLint errors, all repaired in the final lint repair. The root lint command still stops at pre-existing Prettier failures outside the owned set: the two group packets and infrastructure documentation."
+	]
+}

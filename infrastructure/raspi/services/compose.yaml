@@ -1,0 +1,61 @@
+name: edgebox-services
+
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:16
+    container_name: edgebox-forgejo
+    restart: unless-stopped
+    environment:
+      USER_UID: '1000'
+      USER_GID: '1000'
+      FORGEJO__server__ROOT_URL: http://192.168.0.90:3000/
+      FORGEJO__server__SSH_PORT: '2222'
+    volumes:
+      - ./data/forgejo:/data
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - '192.168.0.90:3000:3000'
+      - '192.168.0.90:2222:22'
+    mem_limit: 768m
+
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: edgebox-vaultwarden
+    restart: unless-stopped
+    environment:
+      DOMAIN: http://192.168.0.90:8222
+      SIGNUPS_ALLOWED: 'true'
+    volumes:
+      - ./data/vaultwarden:/data
+    ports:
+      - '192.168.0.90:8222:80'
+    mem_limit: 256m
+
+  vikunja:
+    image: vikunja/vikunja:latest
+    container_name: edgebox-vikunja
+    restart: unless-stopped
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: http://192.168.0.90:3456
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: 'true'
+    volumes:
+      - ./data/vikunja/files:/app/vikunja/files
+      - ./data/vikunja/db:/db
+    ports:
+      - '192.168.0.90:3456:3456'
+    mem_limit: 512m
+
+  stirling-pdf:
+    image: docker.stirlingpdf.com/stirlingtools/stirling-pdf:latest-ultra-lite
+    container_name: edgebox-stirling-pdf
+    restart: unless-stopped
+    environment:
+      SECURITY_ENABLELOGIN: 'true'
+      SYSTEM_DEFAULTLOCALE: en-US
+    volumes:
+      - ./data/stirling-pdf/configs:/configs
+      - ./data/stirling-pdf/logs:/logs
+      - ./data/stirling-pdf/pipeline:/pipeline
+    ports:
+      - '192.168.0.90:8082:8080'
+    mem_limit: 1g
