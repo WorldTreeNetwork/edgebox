@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Put a built image, its sha256, and its manifest into the blob door, then
+# point the public download host at those hashes.
+set -Eeuo pipefail
+
+IMAGE=${1:?image path required}
+SHA_FILE=${IMAGE}.sha256
+MANIFEST=${IMAGE}.manifest
+
+die_missing() {
+  printf 'publish-blob: need %s plus its .sha256 and .manifest\n' "$IMAGE" >&2
+  exit 1
+}
+[[ -f "$IMAGE" && -f "$SHA_FILE" && -f "$MANIFEST" ]] || die_missing
+
+DOOR=${EDGEBOX_BLOB_DOOR:-}
+if [[ -z "$DOOR" && -r /etc/mjolnir/vm.json ]]; then
+  DOOR=$(python3 -c 'import json; print(json.load(open("/etc/mjolnir/vm.json")).get("blob_door_url") or "")')
+fi
+DOOR=${DOOR:-http://10.200.0.1:7222}
+DOOR=${DOOR%/}
+
+POINTER_URL=${EDGEBOX_POINTER_URL:-http://10.200.0.1:8094/edgebox/latest}
+PUBLIC_BASE=${EDGEBOX_IMAGE_PUBLIC:-https://downloads.vm.worldtree.network}
+
+hash_b58() {
+  python3 - "$1" <<'PY'
+import sys
+try:
+    import blake3
+except ImportError:
+    sys.stderr.write("publish-blob: python package blake3 is required\n")
+    sys.exit(1)
+alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+hasher = blake3.blake3()
+with open(sys.argv[1], "rb") as fh:
+    for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+        hasher.update(chunk)
+data = hasher.digest()
+zeros = len(data) - len(data.lstrip(b"\x00"))
+n = int.from_bytes(data, "big")
+chars = []
+while n:
+    n, rem = divmod(n, 58)
+    chars.append(alphabet[rem])
+sys.stdout.write("1" * zeros + "".join(reversed(chars)))
+PY
+}
+
+put_blob() {
+  local file=$1 hash http
+  hash=$(hash_b58 "$file")
+  http=$(curl -sS --fail-with-body -o /tmp/edgebox-blob-put.txt -w '%{http_code}' \
+    -X PUT --data-binary @"$file" \
+    -H 'content-type: application/octet-stream' \
+    "$DOOR/storage/blob/b3/$hash") || {
+    printf 'publish-blob: PUT %s failed\n' "$hash" >&2
+    cat /tmp/edgebox-blob-put.txt >&2 || true
+    exit 1
+  }
+  case "$http" in
+    200|201) ;;
+    *) printf 'publish-blob: PUT %s returned %s\n' "$hash" "$http" >&2; exit 1 ;;
+  esac
+  printf '%s\n' "$hash"
+}
+
+image_hash=$(put_blob "$IMAGE")
+sha_hash=$(put_blob "$SHA_FILE")
+manifest_hash=$(put_blob "$MANIFEST")
+sha256=$(awk '{print $1}' "$SHA_FILE")
+bytes=$(wc -c < "$IMAGE" | tr -d ' ')
+commit=$(git rev-parse HEAD 2>/dev/null || printf unknown)
+
+payload=$(python3 - "$image_hash" "$sha_hash" "$manifest_hash" "$sha256" "$bytes" "$(basename "$IMAGE")" "$commit" <<'PY'
+import json, sys
+image_hash, sha_hash, manifest_hash, sha256, nbytes, name, commit = sys.argv[1:]
+json.dump({
+    "image_hash": image_hash,
+    "sha_hash": sha_hash,
+    "manifest_hash": manifest_hash,
+    "sha256": sha256,
+    "bytes": int(nbytes),
+    "image_name": name,
+    "git_commit": commit,
+}, sys.stdout)
+PY
+)
+
+printf 'blob %s\n' "$DOOR/storage/blob/b3/$image_hash"
+if [[ -z "${EDGEBOX_PUBLISH_TOKEN:-}" ]]; then
+  printf 'publish-blob: EDGEBOX_PUBLISH_TOKEN unset; latest URL was not updated\n' >&2
+  exit 0
+fi
+
+http=$(curl -sS --fail-with-body -o /tmp/edgebox-pointer.txt -w '%{http_code}' \
+  -X POST -H "authorization: Bearer ${EDGEBOX_PUBLISH_TOKEN}" \
+  -H 'content-type: application/json' \
+  --data "$payload" \
+  "$POINTER_URL") || {
+  printf 'publish-blob: pointer update failed\n' >&2
+  cat /tmp/edgebox-pointer.txt >&2 || true
+  exit 1
+}
+case "$http" in
+  200|201|204) ;;
+  *) printf 'publish-blob: pointer returned %s\n' "$http" >&2; cat /tmp/edgebox-pointer.txt >&2; exit 1 ;;
+esac
+
+printf 'download %s/edgebox/latest.img.xz\n' "$PUBLIC_BASE"
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  {
+    printf '### Raspberry Pi image\n\n'
+    printf -- '- Download: %s/edgebox/latest.img.xz\n' "$PUBLIC_BASE"
+    printf -- '- Record: %s/edgebox/latest\n' "$PUBLIC_BASE"
+    printf -- '- Blake3: %s\n' "$image_hash"
+    printf -- '- SHA-256: %s\n' "$sha256"
+  } >> "$GITHUB_STEP_SUMMARY"
+fi

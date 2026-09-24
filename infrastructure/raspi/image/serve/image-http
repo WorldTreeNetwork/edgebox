@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""GET-only public face for Edgebox images stored in the blob door.
+
+127.0.0.1 serves the gateway. 10.200.0.1 accepts the publish pointer
+from guests. Public GETs stream only the hashes named by that pointer.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+DOOR = os.environ.get("EDGEBOX_BLOB_DOOR", "http://10.200.0.1:7222").rstrip("/")
+POINTER = Path(os.environ.get("EDGEBOX_POINTER_FILE", "/var/lib/mjolnir/edgebox-image/latest.json"))
+TOKEN_FILE = Path(os.environ.get("EDGEBOX_PUBLISH_TOKEN_FILE", "/etc/mjolnir/edgebox-image.token"))
+PUBLIC = os.environ.get("EDGEBOX_IMAGE_PUBLIC", "https://downloads.vm.worldtree.network").rstrip("/")
+HASH_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,50}$")
+NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
+
+
+def load_pointer() -> dict | None:
+    try:
+        data = json.loads(POINTER.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def token() -> str:
+    try:
+        return TOKEN_FILE.read_text().strip()
+    except OSError:
+        return ""
+
+
+def stream_blob(handler: BaseHTTPRequestHandler, blob_hash: str, filename: str, content_type: str) -> None:
+    req = Request(f"{DOOR}/storage/blob/b3/{blob_hash}", method="GET")
+    try:
+        upstream = urlopen(req, timeout=120)
+    except HTTPError as exc:
+        body = f"blob door returned {exc.code}\n".encode()
+        handler.send_response(502)
+        handler.send_header("content-type", "text/plain")
+        handler.send_header("content-length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body)
+        return
+    except URLError as exc:
+        body = f"blob door unreachable: {exc.reason}\n".encode()
+        handler.send_response(502)
+        handler.send_header("content-type", "text/plain")
+        handler.send_header("content-length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body)
+        return
+    with upstream:
+        length = upstream.headers.get("Content-Length")
+        handler.send_response(200)
+        handler.send_header("content-type", content_type)
+        handler.send_header("content-disposition", f'attachment; filename="{filename}"')
+        handler.send_header("cache-control", "public, max-age=300")
+        if length:
+            handler.send_header("content-length", length)
+        handler.end_headers()
+        if handler.command != "HEAD":
+            shutil.copyfileobj(upstream, handler.wfile)
+
+
+class PublicHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, fmt: str, *args) -> None:
+        print(f"[edgebox-image] {self.address_string()} {fmt % args}", flush=True)
+
+    def do_HEAD(self) -> None:
+        self.do_GET()
+
+    def do_GET(self) -> None:
+        path = self.path.split("?", 1)[0]
+        if path == "/health":
+            body = b"ok\n"
+            self.send_response(200)
+            self.send_header("content-type", "text/plain")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(body)
+            return
+        pointer = load_pointer()
+        if path == "/edgebox/latest":
+            if not pointer:
+                self.send_error(404, "no image published")
+                return
+            record = {
+                **pointer,
+                "download": f"{PUBLIC}/edgebox/latest.img.xz",
+                "sha256_url": f"{PUBLIC}/edgebox/latest.sha256",
+                "manifest_url": f"{PUBLIC}/edgebox/latest.manifest",
+            }
+            body = (json.dumps(record, indent=2) + "\n").encode()
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("cache-control", "no-cache")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(body)
+            return
+        if not pointer:
+            self.send_error(404, "no image published")
+            return
+        routes = {
+            "/edgebox/latest.img.xz": (pointer.get("image_hash"), pointer.get("image_name") or "edgebox.img.xz", "application/octet-stream"),
+            "/edgebox/latest.sha256": (pointer.get("sha_hash"), "edgebox.img.xz.sha256", "text/plain"),
+            "/edgebox/latest.manifest": (pointer.get("manifest_hash"), "edgebox.img.xz.manifest", "text/plain"),
+        }
+        chosen = routes.get(path)
+        if not chosen or not HASH_RE.fullmatch(str(chosen[0] or "")):
+            self.send_error(404)
+            return
+        stream_blob(self, str(chosen[0]), str(chosen[1]), chosen[2])
+
+    def do_POST(self) -> None:
+        self.send_error(405)
+
+
+class OverlayHandler(PublicHandler):
+    def do_POST(self) -> None:
+        if self.path.split("?", 1)[0] != "/edgebox/latest":
+            self.send_error(404)
+            return
+        expected = token()
+        given = self.headers.get("authorization", "")
+        if not expected or given != f"Bearer {expected}":
+            self.send_error(401)
+            return
+        length = int(self.headers.get("content-length") or "0")
+        if length <= 0 or length > 65536:
+            self.send_error(400, "body")
+            return
+        try:
+            payload = json.loads(self.rfile.read(length))
+        except json.JSONDecodeError:
+            self.send_error(400, "json")
+            return
+        required = ("image_hash", "sha_hash", "manifest_hash", "sha256", "bytes", "image_name", "git_commit")
+        if not isinstance(payload, dict) or any(k not in payload for k in required):
+            self.send_error(400, "fields")
+            return
+        if not all(HASH_RE.fullmatch(str(payload[k])) for k in ("image_hash", "sha_hash", "manifest_hash")):
+            self.send_error(400, "hash")
+            return
+        if not re.fullmatch(r"[0-9a-f]{64}", str(payload["sha256"])):
+            self.send_error(400, "sha256")
+            return
+        if not NAME_RE.fullmatch(str(payload["image_name"])):
+            self.send_error(400, "name")
+            return
+        try:
+            payload["bytes"] = int(payload["bytes"])
+        except (TypeError, ValueError):
+            self.send_error(400, "bytes")
+            return
+        record = {k: payload[k] for k in required}
+        POINTER.parent.mkdir(parents=True, exist_ok=True)
+        tmp = POINTER.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(record, indent=2) + "\n")
+        os.chmod(tmp, 0o644)
+        tmp.replace(POINTER)
+        body = b"ok\n"
+        self.send_response(204)
+        self.send_header("content-length", "0")
+        self.end_headers()
+        del body
+
+
+def serve(address: str, handler: type[BaseHTTPRequestHandler]) -> None:
+    host, port = address.rsplit(":", 1)
+    httpd = ThreadingHTTPServer((host, int(port)), handler)
+    print(f"[edgebox-image] listening on {host}:{port}", flush=True)
+    httpd.serve_forever()
+
+
+def main() -> None:
+    public = os.environ.get("EDGEBOX_IMAGE_HTTP_PUBLIC", "127.0.0.1:8094")
+    overlay = os.environ.get("EDGEBOX_IMAGE_HTTP_OVERLAY", "10.200.0.1:8094")
+    threading.Thread(target=serve, args=(public, PublicHandler), daemon=True).start()
+    serve(overlay, OverlayHandler)
+
+
+if __name__ == "__main__":
+    main()

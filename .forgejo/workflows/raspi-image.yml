@@ -31,14 +31,9 @@ jobs:
       - name: Build image
         run: infrastructure/raspi/image/bin/mjolnir-build
 
-      - name: Publish image
-        uses: forgejo/upload-artifact@v4
-        with:
-          name: edgebox-raspi-image
-          path: |
-            dist/raspi/*.img.xz
-            dist/raspi/*.img.xz.sha256
-            dist/raspi/*.img.xz.manifest
-          if-no-files-found: error
-          include-hidden-files: 'false'
-          overwrite: 'true'
+      - name: Publish to the blob door
+        env:
+          EDGEBOX_PUBLISH_TOKEN: ${{ secrets.EDGEBOX_PUBLISH_TOKEN }}
+        run: |
+          python3 -m pip install --break-system-packages --disable-pip-version-check 'blake3==1.0.8'
+          infrastructure/raspi/image/bin/publish-blob dist/raspi/*.img.xz

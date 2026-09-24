@@ -40,6 +40,15 @@ sudo infrastructure/raspi/image/bin/build-image \
 Artifacts are written to `dist/raspi/`. Use Raspberry Pi Imager's **Use
 Custom** option to flash the resulting `.img.xz` file.
 
+Forgejo publishes that image through the blob door. The bytes are
+addressed by Blake3. The download host only streams the hashes named
+in the latest pointer:
+
+```text
+https://downloads.vm.worldtree.network/edgebox/latest.img.xz
+https://downloads.vm.worldtree.network/edgebox/latest
+```
+
 Profiles may be selected in `site.env` or appended on the command line. `core`
 and `apps` are usable. The `pxe` profile is deliberately gated until a pinned,
 checksummed custom iPXE binary and boot payload are added.
