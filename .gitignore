@@ -28,3 +28,10 @@ storybook-static
 /dist/
 # SQLite
 *.db
+
+# Intention scratch (conductor isolate, spawn stage, harness session)
+.worktrees/
+.spawns/
+.omc/
+.omx/
+groups/*/inventory.json
