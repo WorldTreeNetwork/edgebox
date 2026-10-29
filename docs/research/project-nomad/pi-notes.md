@@ -104,12 +104,26 @@ Do this after Kiwix. A reference library is useful the day the ZIM lands. A cour
 - Pin image tags or digests. `:latest` on Vaultwarden and Stirling is how a Tuesday pull changes the box.
 - Put the vault on trusted HTTPS before real credentials, which is already the Edgebox plan. Their self-signed cert makes the Bitwarden web vault run. It also trains people to click through certificate warnings. Caddy with a private CA or Tailscale is the stronger version of the same affordance.
 
-## A small set that would change the Pi
+## Disk is 1 TB. RAM is the limit.
 
-If only three containers were added to the current Compose file:
+The SSD removes the reason to stay on the 331 MB Wikipedia. It does not remove the reason to stay off Ollama, Kolibri-at-boot, and a second copy of every Supply Depot app.
 
-1. Kiwix, with one named Wikipedia ZIM on the SSD.
-2. Calibre-Web, with an empty library on the SSD.
-3. FlatNotes, or another MIT/Apache notes server, with auth, behind Caddy.
+This repo does not record whether the board is a 4 GB, 8 GB, or 16 GB Pi 5. The Compose file already asks for about 2.5 GB of resident apps and cannot enforce it: Forgejo 768 MB, Vikunja 512 MB, Vaultwarden 256 MB, Stirling PDF 1 GB. The services README says this kernel does not expose container memory accounting, so those limits are wishes. The OS plus `dockerd` and `containerd` sit on top of that. Stirling's JVM is the large one in the current set.
 
-That adds "look something up," "read a book," and "take a note," which the current capability list does not have. Maps and Kolibri can follow once the disk budget is obvious. Chat can follow only if a small model is labeled as small.
+Docker is already the way those four run. The daemon is a sunk cost, on the order of a couple hundred megabytes, paid once. Another container does not start a second Docker. It adds that process's own RSS plus a small shim. `kiwix-serve` is the process that fits this shape: the ZIM stays on the SSD, the server memory-maps it, and a search does not load the library into RAM. A 50 GB Wikipedia and a 120 GB Wikipedia cost the same kind of RAM. They cost different disk and different search latency.
+
+So the hesitation about Docker is right for a new heavy runtime, and overstated for Kiwix. A native `kiwix-serve` unit would save the shim and add a second way to install things next to Compose. Keep the one Compose file. Add the light reader there. Do not add a JVM, a Python course platform, and a model server beside Stirling and expect an 8 GB board to feel idle.
+
+What the 1 TB is for, all of it cold until someone opens Kiwix:
+
+| Put on the SSD | About | Why this one |
+| --- | --- | --- |
+| `wikipedia_en_all_nopic` | 53 GB | Every English article, no images. Best fit for a reader that is short on RAM and rich on disk. |
+| `wikipedia_en_all_maxi`, if pictures matter more than free space | 124 GB | Still one Kiwix process. Leaves most of the terabyte free. |
+| MedlinePlus, or the small medicine and Ready.gov ZIMs | 0.1–2 GB each | Health and preparedness reference without the openFDA indexer. |
+| One regional PMTiles file, copied on, not extracted here | 0.1–2 GB | MapLibre can be a static page later. The planet extract stays off this board. |
+| Calibre library, books the household already has | whatever they are | The reader does not have to be running at boot. |
+
+Leave a few hundred gigabytes. Forgejo, photos, and Jellyfin media also live on this disk. Filling it with every Kiwix tier plus a 50 GB Kolibri channel is how the next download fails.
+
+Calibre-Web and a notes server stay worth having. They do not have to be up at the same time as Stirling if this board is 4 GB. On 8 GB, Kiwix plus those two idling next to the current four is a reasonable boot set. Kolibri and anything that transcodes video are optional starts, not boot services. A local model stays off.

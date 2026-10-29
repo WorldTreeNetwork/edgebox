@@ -15,7 +15,7 @@ The Apache 2.0 grant covers the NOMAD application. It does not cover Wikipedia, 
 - [Overview](overview.md) — who publishes it, how a box is put together, what the website claims, and the security posture.
 - [Software stack](software-stack.md) — every open-source program the appliance runs or compiles in, with the image tag or package version pinned in `main` and the upstream license.
 - [Data sources](data-sources.md) — every pinned download: ZIM files, maps, FDA labels, remedy text, translation models, AI weights, Kolibri channels, and Creator Packs, and the host each one comes from.
-- [Notes for the Pi](pi-notes.md) — what that stack affords, and which pieces are worth adding to the Raspberry Pi 5 Edgebox already runs. Written 2026-10-28.
+- [Notes for the Pi](pi-notes.md) — what that stack affords, and which pieces are worth adding to the Raspberry Pi 5. A 1 TB SSD and tight RAM narrow that to Kiwix plus cold files. Updated 2026-10-28.
 
 ## How this was checked
 
